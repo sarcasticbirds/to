@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 	"regexp"
 	"strconv"
 	"strings"
@@ -39,10 +40,13 @@ type Measurement struct {
 // ErrOutOfRange indicates that a conversion cannot be represented as float64.
 var ErrOutOfRange = errors.New("conversion result is outside supported range")
 
+// Fractions precede decimals so an attached fraction is not split at its slash.
+const numberGrammar = `[+-]?(?:\d+(?:-\d+)?/\d+|(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)`
+
 var (
 	errMissingUnit     = errors.New("missing unit")
-	numberPattern      = regexp.MustCompile(`^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$`)
-	measurementPattern = regexp.MustCompile(`^([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*(.+)$`)
+	numberPattern      = regexp.MustCompile(`^` + numberGrammar + `$`)
+	measurementPattern = regexp.MustCompile(`^(` + numberGrammar + `)\s*(.+)$`)
 	aliases            = buildAliases()
 )
 
@@ -141,6 +145,12 @@ func parseMeasurement(input string) (Measurement, error) {
 	if parts == nil {
 		return Measurement{}, fmt.Errorf("invalid measurement %q", input)
 	}
+	// Do not mistake an unfinished or ambiguous number for a unit suffix.
+	suffix := strings.TrimSpace(parts[2])
+	if suffix == "" || strings.ContainsAny(suffix[:1], "0123456789/+-.") ||
+		(strings.Contains(parts[1], "/") && strings.ContainsAny(suffix[:1], "eE")) {
+		return Measurement{}, fmt.Errorf("invalid measurement %q", input)
+	}
 	value, err := parseNumber(parts[1])
 	if err != nil {
 		return Measurement{}, fmt.Errorf("invalid measurement %q: %w", input, err)
@@ -153,6 +163,9 @@ func parseMeasurement(input string) (Measurement, error) {
 }
 
 func parseNumber(raw string) (float64, error) {
+	if strings.Contains(raw, "/") {
+		return parseFraction(raw)
+	}
 	value, err := strconv.ParseFloat(raw, 64)
 	if err != nil {
 		return 0, fmt.Errorf("invalid measurement %q: %w", raw, err)
@@ -166,6 +179,36 @@ func parseNumber(raw string) (float64, error) {
 		if strings.ContainsAny(mantissa, "123456789") {
 			return 0, fmt.Errorf("measurement %q is outside supported range", raw)
 		}
+	}
+	return value, nil
+}
+
+func parseFraction(raw string) (float64, error) {
+	// The grammar has already restricted every component to decimal digits.
+	unsigned := strings.TrimLeft(raw, "+-")
+	left, denominator, _ := strings.Cut(unsigned, "/")
+	whole, numerator, mixed := strings.Cut(left, "-")
+	if !mixed {
+		numerator = whole
+	}
+	n, _ := new(big.Int).SetString(numerator, 10)
+	d, _ := new(big.Int).SetString(denominator, 10)
+	if d.Sign() == 0 {
+		return 0, fmt.Errorf("invalid measurement %q: denominator is zero", raw)
+	}
+	if mixed {
+		w, _ := new(big.Int).SetString(whole, 10)
+		n.Add(n, w.Mul(w, d))
+	}
+	// Convert only the complete ratio: large components can cancel to a
+	// representable value, and a tiny fraction can be part of a mixed number.
+	ratio := new(big.Rat).SetFrac(n, d)
+	value, _ := ratio.Float64()
+	if !isFinite(value) || (value == 0 && ratio.Sign() != 0) {
+		return 0, fmt.Errorf("invalid measurement %q: outside supported range", raw)
+	}
+	if strings.HasPrefix(raw, "-") {
+		value = -value
 	}
 	return value, nil
 }
