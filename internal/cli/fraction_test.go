@@ -28,6 +28,14 @@ func TestRunFractions(t *testing.T) {
 	}
 }
 
+func TestRunSignedMixedNumberConversionList(t *testing.T) {
+	code, stdout, stderr := run("-1-1/2in", "mm,", "1/2cup", "ml")
+	want := "-38.1 mm\n\n118.3 ml\n"
+	if code != 0 || stdout != want || stderr != "" {
+		t.Fatalf("Run() = (%d, %q, %q), want (0, %q, empty)", code, stdout, stderr, want)
+	}
+}
+
 func TestRunInvalidFractionBatchesAreAtomic(t *testing.T) {
 	huge := "1" + strings.Repeat("0", 400)
 	for _, raw := range []string{"1/0in", "1/2/3in", "1/2e3in", "1 1/2in", huge + "/1in", "1/" + huge + "in"} {
