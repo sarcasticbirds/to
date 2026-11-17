@@ -77,6 +77,26 @@ to <value> <source-unit> [target-unit]
 to <expression>, <expression> [...]
 ```
 
+### Fraction input
+
+Use simple fractions (`1/2in`, `1/2 in`) or hyphenated mixed numbers
+(`1-1/2in`, `1-1/2 in`) anywhere a decimal value works: summaries, direct
+conversions, and comma-separated batches. Proper, improper, and reducible
+fractions are accepted. A leading `+` or `-` applies to the whole value:
+`-1-1/2in` means `-1.5in`, not `-0.5in`.
+
+```sh
+to 1/2in
+to 1-1/2 in mm
+to -1-1/2in mm, 1/2cup ml
+```
+
+Keep each numeric value in one shell token, with no internal spaces. Numerators,
+denominators, and mixed-number whole parts contain decimal digits only; a zero
+denominator is invalid. Arithmetic expressions, spaced mixed numbers (`1 1/2`),
+Unicode fraction glyphs (`½`), and fractional exponents are not supported.
+Decimal and scientific input still work unchanged.
+
 ### One answer or a short list
 
 ```text
@@ -221,8 +241,9 @@ Decimal output is rounded to four significant digits, with scientific notation
 for very small or large values. Fractional inches use the nearest 1/64 inch;
 `≈` marks a fraction that differs from the calculated value beyond floating-point
 roundoff. Calculations use float64, so this is a convenient everyday converter,
-not an arbitrary-precision calculator. Input fractions such as `1/2in` are not
-supported; use `.5in`.
+not an arbitrary-precision calculator. Fraction input is rounded to float64 only
+after evaluating the complete ratio. Nonzero input that rounds to zero, and
+input that overflows float64, is rejected just like decimal input.
 
 Unknown units, incompatible dimensions, temperatures below absolute zero, and
 values outside the supported numeric range produce an error. A batch is
@@ -247,6 +268,10 @@ flox activate -- go test -race ./...
 flox activate -- go vet ./...
 flox activate -- go build -o ./bin/to ./cmd/to
 ```
+
+Flox is optional. With Go 1.26 or newer and a C compiler available, run the
+same checks directly: `go test ./...`, `go test -race ./...`, `go vet ./...`,
+and `go build -o ./bin/to ./cmd/to`.
 
 The code has three small layers: `internal/measure` parses and converts,
 `internal/presentation` formats answers, and `internal/cli` handles arguments,

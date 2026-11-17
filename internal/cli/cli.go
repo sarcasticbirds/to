@@ -31,6 +31,13 @@ const help = `Usage:
 Without a target unit, to shows a short list of useful equivalents.
 Separate multiple complete expressions with commas.
 
+Values accept decimals, scientific notation, fractions (1/2in, 1/2 in), and
+hyphenated mixed numbers (1-1/2in, 1-1/2 in). A leading sign applies to the
+whole value: -1-1/2in means -1.5 inches. Keep each value in one shell token.
+Fraction components use decimal digits only, with a nonzero denominator.
+No arithmetic expressions, spaced mixed numbers, Unicode fraction glyphs,
+or fractional exponents are supported.
+
 Length:      mm, cm, m, km, in, ft, yd, mi
 Weight:      mg, g, kg, oz, lb, st
 Volume:      ml, l, tsp, tbsp, floz, cup, pt, qt, gal
@@ -51,6 +58,9 @@ Speed summaries show m/s, km/h, mph, kn, omitting the source unit and
   out-of-range equivalents. ft/s is available as an explicit target.
 
 Examples:
+  to 1/2in
+  to 1-1/2 in mm
+  to -1-1/2in mm, 1/2cup ml
   to 33mm
   to 33mm in
   to 33mm in, 120f

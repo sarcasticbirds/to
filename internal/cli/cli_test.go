@@ -244,7 +244,12 @@ func TestVersionSelection(t *testing.T) {
 }
 
 func FuzzRun(f *testing.F) {
-	for _, seed := range []string{"33mm in, 120f", "1 2m cm", "NaN m", "-459.67f", "1e308f c", "1e-9in", ",", ""} {
+	for _, seed := range []string{
+		"33mm in, 120f", "1 2m cm", "NaN m", "-459.67f", "1e308f c", "1e-9in", ",", "",
+		"1/2in", "1-1/2 in mm", "-1-1/2in", "+3/2cup ml", "2/4m/s km/h",
+		"1/2in, 1/0cup", "1//2in", "1/2/3in", "1/2e3in", "1 1/2in",
+		"1/" + "1" + strings.Repeat("0", 400) + "in",
+	} {
 		f.Add(seed)
 	}
 	f.Fuzz(func(t *testing.T, input string) {
